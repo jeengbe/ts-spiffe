@@ -1,0 +1,16 @@
+{
+  "extends": "@tsconfig/node24",
+  "compilerOptions": {
+    "types": ["jest", "node", "@total-typescript/ts-reset"],
+    "sourceMap": true,
+    "esModuleInterop": true,
+    "declaration": true,
+    "declarationMap": true,
+    "paths": {
+      "@/*": ["src/*"]
+    },
+    "baseUrl": ".",
+    "rootDir": "src",
+    "outDir": "dist"
+  }
+}
