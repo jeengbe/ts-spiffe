@@ -1,6 +1,5 @@
-import 'reflect-metadata';
-
 import { ChannelCredentials } from '@grpc/grpc-js';
+import { TTLCache } from '@isaacs/ttlcache';
 import { GrpcOptions, GrpcTransport } from '@protobuf-ts/grpc-transport';
 import { RpcError } from '@protobuf-ts/runtime-rpc';
 import { NoSvidError } from './error';
@@ -14,6 +13,10 @@ import { Struct } from './proto/google/protobuf/struct';
 import { SpiffeWorkloadAPIClient } from './proto/workloadapi.client';
 
 export class SpiffeClientImpl implements SpiffeJwtClient, Disposable {
+  /**
+   * Audience => JWT
+   */
+  private readonly cache = new TTLCache<string, string>();
   private readonly abortController = new AbortController();
   private readonly transport: GrpcTransport;
   private readonly api: SpiffeWorkloadAPIClient;
@@ -46,10 +49,32 @@ export class SpiffeClientImpl implements SpiffeJwtClient, Disposable {
     audience: string | readonly string[],
     filter?: SvidFilter,
   ): Promise<string> {
-    const svids = await this.listJwtSvids(
-      typeof audience === 'string' ? [audience] : audience,
-      filter,
-    );
+    const aud = typeof audience === 'string' ? [audience] : audience;
+
+    const cacheKey = aud.join('|');
+    const cached = this.cache.get(cacheKey);
+
+    if (cached) {
+      return cached;
+    }
+
+    const token = await this._getJwt(aud, filter);
+
+    const ttlMinusAMinute = getJwtExpMs(token) - Date.now() - 60000;
+    if (ttlMinusAMinute > 0) {
+      this.cache.set(cacheKey, token, {
+        ttl: ttlMinusAMinute,
+      });
+    }
+
+    return token;
+  }
+
+  private async _getJwt(
+    audience: readonly string[],
+    filter?: SvidFilter,
+  ): Promise<string> {
+    const svids = await this.listJwtSvids(audience, filter);
 
     const svid = svids.at(0);
 
@@ -136,6 +161,15 @@ export class SpiffeClientImpl implements SpiffeJwtClient, Disposable {
     this.abortController.abort();
     this.transport.close();
   }
+}
+
+function getJwtExpMs(token: string): number {
+  const parsedPayload = JSON.parse(
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- Assume Workload API returns valid JWTs
+    Buffer.from(token.split('.').at(1)!, 'base64url').toString('utf-8'),
+  ) as { exp: number };
+
+  return parsedPayload.exp * 1000;
 }
 
 function createGrpcOptions(

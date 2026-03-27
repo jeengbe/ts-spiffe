@@ -68,20 +68,27 @@ describe('SpiffeClientImpl', () => {
 
   describe('SpiffeJwtClient', () => {
     describe('getJwt', () => {
+      const fakeJwt = `.${Buffer.from(
+        JSON.stringify({
+          exp: Math.floor(Date.now() / 1000) + 10 * 60, // 10 minutes in the future
+        }),
+        'utf-8',
+      ).toString('base64url')}.`;
+
       it('should return JWT for the specified audience', async () => {
         fakeService.fetchJWTSVID.mockImplementationOnce((_, callback) => {
           callback(null, {
             svids: [
               {
                 spiffeId: 'spiffe://example.org/test',
-                svid: 'fake-svid',
+                svid: fakeJwt,
                 hint: '',
               },
             ],
           });
         });
 
-        expect(await client.getJwt('test-audience')).toBe('fake-svid');
+        expect(await client.getJwt('test-audience')).toBe(fakeJwt);
       });
 
       it('should request multiple audiences', async () => {
@@ -90,14 +97,46 @@ describe('SpiffeClientImpl', () => {
             svids: [
               {
                 spiffeId: 'spiffe://example.org/test',
-                svid: 'fake-svid',
+                svid: fakeJwt,
                 hint: '',
               },
             ],
           });
         });
 
-        expect(await client.getJwt('test-audience')).toBe('fake-svid');
+        expect(await client.getJwt('test-audience')).toBe(fakeJwt);
+      });
+
+      it('should cache the returned JWT', async () => {
+        fakeService.fetchJWTSVID.mockImplementation((_, callback) => {
+          const fakeJwt = `.${Buffer.from(
+            JSON.stringify({
+              exp: Math.floor(Date.now() / 1000) + 62, // 10 minutes in the future
+            }),
+            'utf-8',
+          ).toString('base64url')}.`;
+
+          callback(null, {
+            svids: [
+              {
+                spiffeId: 'spiffe://example.org/test',
+                svid: fakeJwt,
+                hint: '',
+              },
+            ],
+          });
+        });
+
+        const firstJwt = await client.getJwt('test-audience');
+        await client.getJwt('test-audience');
+
+        expect(fakeService.fetchJWTSVID).toHaveBeenCalledTimes(1);
+
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+
+        expect(await client.getJwt('test-audience')).not.toBe(firstJwt);
+
+        expect(fakeService.fetchJWTSVID).toHaveBeenCalledTimes(2);
       });
 
       it('should throw NoSvidError if no SVIDs are returned', async () => {

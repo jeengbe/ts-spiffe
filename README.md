@@ -27,7 +27,7 @@ const spiffe = new SpiffeClientImpl();
 
 To work with JWT-SVIDs, the client implements the `SpiffeJwtClient` interface.
 
-Use `getJwt()` in client applications to fetch a JSON Web Token for the specified audience. The token is cached in the client instance and automatically rotated once it is close to expiring.
+Use `getJwt()` in client applications to fetch a JSON Web Token for the specified audience.
 
 ```ts
 declare const spiffe: SpiffeJwtClient;
