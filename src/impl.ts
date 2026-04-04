@@ -12,7 +12,7 @@ import {
 import { Struct } from './proto/google/protobuf/struct';
 import { SpiffeWorkloadAPIClient } from './proto/workloadapi.client';
 
-export class SpiffeClientImpl implements SpiffeJwtClient, Disposable {
+export class SpiffeClient implements SpiffeJwtClient, Disposable {
   /**
    * Audience => JWT
    */

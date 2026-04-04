@@ -8,7 +8,7 @@ import {
 import { RpcError } from '@protobuf-ts/runtime-rpc';
 import * as fs from 'fs/promises';
 import { NoSvidError } from './error';
-import { SpiffeClientImpl } from './impl';
+import { SpiffeClient } from './impl';
 import { Struct } from './proto/google/protobuf/struct';
 import {
   ISpiffeWorkloadAPI,
@@ -19,7 +19,7 @@ describe('SpiffeClientImpl', () => {
   let socketUri: string;
   let fakeService: FakeSpiffeWorkloadAPI;
   let server: Server;
-  let client: SpiffeClientImpl;
+  let client: SpiffeClient;
 
   beforeAll(async () => {
     socketUri = `unix://${await fs.mkdtemp('/tmp/spiffe-client-test-')}/socket.sock`;
@@ -53,7 +53,7 @@ describe('SpiffeClientImpl', () => {
     fakeService = new FakeSpiffeWorkloadAPI();
     server.addService(spiffeWorkloadAPIDefinition, fakeService);
 
-    client = new SpiffeClientImpl({
+    client = new SpiffeClient({
       host: socketUri,
       channelCredentials: ChannelCredentials.createInsecure(),
       clientOptions: {
