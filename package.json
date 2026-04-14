@@ -1,6 +1,6 @@
 {
   "name": "@jeengbe/spiffe",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "description": "A TypeScript library for working with SPIFFE workload identities.",
   "keywords": [
     "SPIFFE",
@@ -24,6 +24,16 @@
     "!**/__snapshots__",
     "!**/__utils__"
   ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./google-auth-client": {
+      "types": "./dist/google-auth-client.d.ts",
+      "default": "./dist/google-auth-client.js"
+    }
+  },
   "scripts": {
     "build": "tsc && tsc-alias",
     "lint": "eslint .",
@@ -52,10 +62,19 @@
     "eslint": "^9.33.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
+    "google-auth-library": "^10.6.2",
     "jest": "^30.0.5",
     "prettier": "^3.6.2",
     "tsc-alias": "^1.8.16",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.40.0"
+  },
+  "peerDependencies": {
+    "google-auth-library": "10"
+  },
+  "peerDependenciesMeta": {
+    "google-auth-library": {
+      "optional": true
+    }
   }
 }
