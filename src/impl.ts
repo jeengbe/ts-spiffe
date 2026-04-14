@@ -83,7 +83,7 @@ export class SpiffeClient implements SpiffeJwtClient, AsyncDisposable {
     const ttlRemainingMs = expiresAtMs - Date.now();
     if (ttlRemainingMs > 0) {
       this.jwtSvidCache.set(cacheKey, parsed, {
-        ttl: ttlRemainingMs / 2,
+        ttl: Math.ceil(ttlRemainingMs / 2),
       });
     }
 
