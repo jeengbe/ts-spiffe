@@ -68,7 +68,13 @@ describe('SpiffeClientImpl', () => {
 
   describe('SpiffeJwtClient', () => {
     describe('getJwt', () => {
-      const fakeJwt = `.${Buffer.from(
+      const fakeJwt = `1.${Buffer.from(
+        JSON.stringify({
+          exp: Math.floor(Date.now() / 1000) + 10 * 60, // 10 minutes in the future
+        }),
+        'utf-8',
+      ).toString('base64url')}.`;
+      const fakeJwt2 = `2.${Buffer.from(
         JSON.stringify({
           exp: Math.floor(Date.now() / 1000) + 10 * 60, // 10 minutes in the future
         }),
@@ -137,6 +143,27 @@ describe('SpiffeClientImpl', () => {
         expect(await client.getJwt('test-audience')).not.toBe(firstJwt);
 
         expect(fakeService.fetchJWTSVID).toHaveBeenCalledTimes(2);
+      });
+
+      it('should filter for hint if provided', async () => {
+        fakeService.fetchJWTSVID.mockImplementationOnce((_, callback) => {
+          callback(null, {
+            svids: [
+              {
+                spiffeId: 'spiffe://example.org/test1',
+                svid: fakeJwt,
+                hint: 'hint1',
+              },
+              {
+                spiffeId: 'spiffe://example.org/test2',
+                svid: fakeJwt2,
+                hint: 'hint2',
+              },
+            ],
+          });
+        });
+
+        expect(await client.getJwt('test-audience', 'hint2')).toBe(fakeJwt2);
       });
 
       it('should throw NoSvidError if no SVIDs are returned', async () => {

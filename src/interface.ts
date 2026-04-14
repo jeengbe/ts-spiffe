@@ -19,10 +19,17 @@ export interface SpiffeJwtClient {
    *
    * @throws {NoSvidError} if the API returns no SVIDs for the specified filter.
    */
-  getJwt(
+  getJwt(audience: string | readonly string[], hint?: string): Promise<string>;
+
+  /**
+   * Fetches a JWT-SVID for the specified audience and returns the SVID.
+   *
+   * @throws {NoSvidError} if the API returns no SVIDs for the specified filter.
+   */
+  getJwtSvid(
     audience: string | readonly string[],
-    filter?: SvidFilter,
-  ): Promise<string>;
+    hint?: string,
+  ): Promise<ParsedJwtSvid>;
 
   /**
    * Validates a JWT-SVID and returns the validated payload if accepted, or null if
@@ -34,23 +41,13 @@ export interface SpiffeJwtClient {
   ): Promise<ValidatedJwtSvid | null>;
 }
 
-export interface SvidFilter {
-  /**
-   * Returns the SVID for the specified SPIFFE ID.
-   */
-  spiffeId?: string;
-
-  /**
-   * Returns only SVIDs whose hint matches the specified value. (SVIDs with an empty
-   * hint are not returned.)
-   */
-  hint?: string;
-}
-
 export interface JwtSvid {
   spiffeId: string;
-  hint: string | null;
   token: string;
+}
+
+export interface ParsedJwtSvid extends JwtSvid {
+  expiresAtMs: number;
 }
 
 export interface ValidatedJwtSvid {

@@ -5,25 +5,28 @@ import { RpcError } from '@protobuf-ts/runtime-rpc';
 import { NoSvidError } from './error';
 import {
   JwtSvid,
+  ParsedJwtSvid,
   SpiffeJwtClient,
-  SvidFilter,
   ValidatedJwtSvid,
 } from './interface';
 import { Struct } from './proto/google/protobuf/struct';
 import { SpiffeWorkloadAPIClient } from './proto/workloadapi.client';
 
-export class SpiffeClient implements SpiffeJwtClient, Disposable {
-  /**
-   * Audience => JWT
-   */
-  private readonly cache = new TTLCache<string, string>();
+export class SpiffeClient implements SpiffeJwtClient, AsyncDisposable {
+  private readonly jwtSvidCache = new TTLCache<string, ParsedJwtSvid>();
+  private readonly jwtSvidsInFlight = new Map<
+    string,
+    Promise<readonly JwtSvid[]>
+  >();
+
   private readonly abortController = new AbortController();
   private readonly transport: GrpcTransport;
   private readonly api: SpiffeWorkloadAPIClient;
 
   /**
-   * Constructs a SpiffeClientImpl with the given socket. If no socket is provided, the
-   * `SPIFFE_ENDPOINT_SOCKET` environment variable will be used.
+   * Constructs a SPIFFE Client instance with the given socket. If no socket is provided, the
+   * `SPIFFE_ENDPOINT_SOCKET` environment variable will be used, and if neither are set, defaults
+   * to `unix:///tmp/spire-agent/public/api.sock`.
    *
    * Format: `unix:///path/to/socket` for Unix domain sockets, or `tcp://host:port` for TCP sockets.
    *
@@ -32,7 +35,7 @@ export class SpiffeClient implements SpiffeJwtClient, Disposable {
   constructor(socket?: string);
 
   /**
-   * Constructs a SpiffeClientImpl with the given gRPC options.
+   * Constructs a SPIFFE Client instance with the given gRPC options.
    *
    * (Do not forget to set the `workload.spiffe.io` gRPC metadata to `true` in the options.)
    *
@@ -47,55 +50,80 @@ export class SpiffeClient implements SpiffeJwtClient, Disposable {
 
   async getJwt(
     audience: string | readonly string[],
-    filter?: SvidFilter,
+    hint?: string,
   ): Promise<string> {
-    const aud = typeof audience === 'string' ? [audience] : audience;
+    return (await this.getJwtSvid(audience, hint)).token;
+  }
 
-    const cacheKey = aud.join('|');
-    const cached = this.cache.get(cacheKey);
+  async getJwtSvid(
+    audience: string | readonly string[],
+    hint?: string,
+  ): Promise<ParsedJwtSvid> {
+    const aud = typeof audience === 'string' ? [audience] : audience;
+    const cacheKey = [aud.join('|'), hint ?? ''].join(':');
+
+    const cached = this.jwtSvidCache.get(cacheKey);
 
     if (cached) {
       return cached;
     }
 
-    const token = await this._getJwt(aud, filter);
+    const svid = (await this.listJwtSvids(cacheKey, aud, hint)).at(0);
 
-    const ttlMinusAMinute = getJwtExpMs(token) - Date.now() - 60000;
-    if (ttlMinusAMinute > 0) {
-      this.cache.set(cacheKey, token, {
-        ttl: ttlMinusAMinute,
+    if (!svid) {
+      throw new NoSvidError('JWT', hint);
+    }
+
+    const expiresAtMs = getJwtExpMs(svid.token);
+    const parsed: ParsedJwtSvid = {
+      ...svid,
+      expiresAtMs,
+    };
+
+    const ttlRemainingMs = expiresAtMs - Date.now();
+    if (ttlRemainingMs > 0) {
+      this.jwtSvidCache.set(cacheKey, parsed, {
+        ttl: ttlRemainingMs / 2,
       });
     }
 
-    return token;
-  }
-
-  private async _getJwt(
-    audience: readonly string[],
-    filter?: SvidFilter,
-  ): Promise<string> {
-    const svids = await this.listJwtSvids(audience, filter);
-
-    const svid = svids.at(0);
-
-    if (!svid) {
-      throw new NoSvidError('JWT', filter);
-    }
-
-    return svid.token;
+    return parsed;
   }
 
   private async listJwtSvids(
+    cacheKey: string,
     audience: readonly string[],
-    filter?: SvidFilter,
+    hint?: string,
+  ): Promise<readonly JwtSvid[]> {
+    let inFlight = this.jwtSvidsInFlight.get(cacheKey);
+
+    if (!inFlight) {
+      inFlight = this._listJwtSvids(audience, hint);
+      this.jwtSvidsInFlight.set(cacheKey, inFlight);
+
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises -- We wait it further down below
+      inFlight.finally(() => {
+        this.jwtSvidsInFlight.delete(cacheKey);
+      });
+    }
+
+    return await inFlight;
+  }
+
+  private async _listJwtSvids(
+    audience: readonly string[],
+    hint?: string,
   ): Promise<readonly JwtSvid[]> {
     let res;
 
     try {
-      res = await this.api.fetchJWTSVID({
-        audience: [...audience],
-        spiffeId: filter?.spiffeId ?? '',
-      });
+      res = await this.api.fetchJWTSVID(
+        {
+          audience: [...audience],
+          spiffeId: '',
+        },
+        { abort: this.abortController.signal },
+      );
     } catch (err) {
       if (
         err instanceof RpcError &&
@@ -108,18 +136,10 @@ export class SpiffeClient implements SpiffeJwtClient, Disposable {
     }
 
     return res.response.svids
-      .filter((svid) => {
-        // We can already filter by SPIFFE ID in the API request, so only hint-based needed here.
-        if (filter?.hint !== undefined && svid.hint !== filter.hint) {
-          return false;
-        }
-
-        return true;
-      })
+      .filter((svid) => !hint || svid.hint === hint)
       .map(
         (s): JwtSvid => ({
           spiffeId: s.spiffeId,
-          hint: s.hint || null, // '||' to collapse gRPC-empty string to null
           token: s.svid,
         }),
       );
@@ -131,10 +151,13 @@ export class SpiffeClient implements SpiffeJwtClient, Disposable {
   ): Promise<ValidatedJwtSvid | null> {
     let res;
     try {
-      res = await this.api.validateJWTSVID({
-        audience: expectedAudience,
-        svid: token,
-      });
+      res = await this.api.validateJWTSVID(
+        {
+          audience: expectedAudience,
+          svid: token,
+        },
+        { abort: this.abortController.signal },
+      );
     } catch (err) {
       if (err instanceof RpcError && err.code === 'INVALID_ARGUMENT') {
         return null;
@@ -153,11 +176,11 @@ export class SpiffeClient implements SpiffeJwtClient, Disposable {
     };
   }
 
-  [Symbol.dispose](): void {
-    this.close();
+  async [Symbol.asyncDispose](): Promise<void> {
+    await this.close();
   }
 
-  close(): void {
+  async close(): Promise<void> {
     this.abortController.abort();
     this.transport.close();
   }

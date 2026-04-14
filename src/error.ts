@@ -1,11 +1,9 @@
-import { SvidFilter } from './interface';
-
 export class NoSvidError extends Error {
   constructor(
     type: 'JWT' | 'X509',
-    readonly filter?: SvidFilter,
+    readonly hint?: string,
   ) {
-    super(`No ${type}-SVID found for the specified filter`);
+    super(`No ${type}-SVID found.`);
     this.name = 'NoSvidError';
     Error.captureStackTrace(this, NoSvidError);
   }
