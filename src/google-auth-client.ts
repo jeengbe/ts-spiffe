@@ -58,14 +58,18 @@ export class SpiffeJwtGoogleSubjectTokenSupplier
  * }
  * ```
  *
- * ```ts
- * new BigQuery({
- *   authClient: await maybeCreateAuthClientFromAdc(new SpiffeJwtClientImpl()),
- * });
- * ```
- *
  * If the configured credential source is not `spiffe`, the function returns `undefined`, so that the
  * regular ADC flow can be used as a fallback.
+ *
+ * ```ts
+ * import { BigQuery } from '@google-cloud/bigquery';
+ * import { SpiffeClient } from '@jeengbe/spiffe';
+ * import { maybeCreateAuthClientFromAdc } from '@jeengbe/spiffe/google-auth-client';
+ *
+ * const bigQuery = new BigQuery({
+ *   authClient: await maybeCreateAuthClientFromAdc(() => new SpiffeClient()),
+ * });
+ * ```
  */
 export async function maybeCreateAuthClientFromAdc(
   spiffe: SpiffeJwtClient | (() => SpiffeJwtClient),
@@ -103,14 +107,22 @@ export async function maybeCreateAuthClientFromAdc(
     return undefined;
   }
 
+  const spiffeHint =
+    'hint' in adc.credential_source.spiffe &&
+    typeof adc.credential_source.spiffe.hint === 'string'
+      ? adc.credential_source.spiffe.hint
+      : undefined;
+
+  delete adc.credential_source;
+  if ('credentialSource' in adc) {
+    delete adc.credentialSource;
+  }
+
   return new IdentityPoolClient({
     ...adc,
     subjectTokenSupplier: new SpiffeJwtGoogleSubjectTokenSupplier(
       typeof spiffe === 'function' ? spiffe() : spiffe,
-      'hint' in adc.credential_source.spiffe &&
-      typeof adc.credential_source.spiffe.hint === 'string'
-        ? adc.credential_source.spiffe.hint
-        : undefined,
+      spiffeHint,
     ),
     ...clientOptions,
   } as unknown as IdentityPoolClientOptions);
