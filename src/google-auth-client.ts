@@ -68,7 +68,7 @@ export class SpiffeJwtGoogleSubjectTokenSupplier
  * regular ADC flow can be used as a fallback.
  */
 export async function maybeCreateAuthClientFromAdc(
-  spiffe: SpiffeJwtClient,
+  spiffe: SpiffeJwtClient | (() => SpiffeJwtClient),
   clientOptions?: AuthClientOptions,
 ): Promise<AuthClient | undefined> {
   const adcFileContent = await getAdcFileContent();
@@ -106,7 +106,7 @@ export async function maybeCreateAuthClientFromAdc(
   return new IdentityPoolClient({
     ...adc,
     subjectTokenSupplier: new SpiffeJwtGoogleSubjectTokenSupplier(
-      spiffe,
+      typeof spiffe === 'function' ? spiffe() : spiffe,
       'hint' in adc.credential_source.spiffe &&
       typeof adc.credential_source.spiffe.hint === 'string'
         ? adc.credential_source.spiffe.hint
