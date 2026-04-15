@@ -10,6 +10,7 @@ import {
 import { AuthClientOptions } from 'google-auth-library/build/src/auth/authclient';
 import os from 'os';
 import * as path from 'path';
+import { SpiffeClient } from './impl';
 import { SpiffeJwtClient } from './interface';
 
 export class SpiffeJwtGoogleSubjectTokenSupplier
@@ -63,16 +64,15 @@ export class SpiffeJwtGoogleSubjectTokenSupplier
  *
  * ```ts
  * import { BigQuery } from '@google-cloud/bigquery';
- * import { SpiffeClient } from '@jeengbe/spiffe';
  * import { maybeCreateAuthClientFromAdc } from '@jeengbe/spiffe/google-auth-client';
  *
  * const bigQuery = new BigQuery({
- *   authClient: await maybeCreateAuthClientFromAdc(() => new SpiffeClient()),
+ *   authClient: await maybeCreateAuthClientFromAdc(),
  * });
  * ```
  */
 export async function maybeCreateAuthClientFromAdc(
-  spiffe: SpiffeJwtClient | (() => SpiffeJwtClient),
+  spiffe: SpiffeJwtClient | (() => SpiffeJwtClient) = () => new SpiffeClient(),
   clientOptions?: AuthClientOptions,
 ): Promise<AuthClient | undefined> {
   const adcFileContent = await getAdcFileContent();

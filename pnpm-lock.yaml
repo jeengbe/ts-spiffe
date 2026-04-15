@@ -69,6 +69,9 @@ importers:
       jest:
         specifier: ^30.0.5
         version: 30.0.5(@types/node@24.3.0)
+      mappersmith:
+        specifier: ^2.47.0
+        version: 2.47.0
       prettier:
         specifier: ^3.6.2
         version: 3.6.2
@@ -1630,6 +1633,17 @@ packages:
 
   makeerror@1.0.12:
     resolution: {integrity: sha512-JmqCvUhmt43madlpFzG4BQzG2Z3m6tvQDNKdClZnO3VbIudJYmxsT0FNJMeiB2+JTSlTQTSbU8QdesVmwJcmLg==}
+
+  mappersmith@2.47.0:
+    resolution: {integrity: sha512-3GenMRqE2/zLIUuFs/75j54bzhlDZ1okLw/u5BtmPgMq+8OueH8jmY7jbgBRCR3jERRzW0HQ+lxB1715I0bS5w==}
+    peerDependencies:
+      diff: ^7.0.0
+      tty-table: ^4.2.3
+    peerDependenciesMeta:
+      diff:
+        optional: true
+      tty-table:
+        optional: true
 
   merge-stream@2.0.0:
     resolution: {integrity: sha512-abv/qOcuPfk3URPfDzmZU1LKmuw8kT+0nIHvKrKgFrwifol/doWcdA4ZqsWQ8ENrFKkd67Mfpo/LovbIUsbt3w==}
@@ -3921,6 +3935,8 @@ snapshots:
   makeerror@1.0.12:
     dependencies:
       tmpl: 1.0.5
+
+  mappersmith@2.47.0: {}
 
   merge-stream@2.0.0: {}
 
