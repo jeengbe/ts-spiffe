@@ -5,7 +5,7 @@ A TypeScript library for working with SPIFFE workload identities.
 
 [![License](https://img.shields.io/npm/l/@jeengbe/spiffe)](https://github.com/jeengbe/spiffe/blob/LICENSE.md)
 [![Version](https://img.shields.io/npm/v/@jeengbe/spiffe)](https://www.npmjs.com/package/@jeengbe/spiffe)
-![Coverage Badge](https://img.shields.io/badge/Coverage-100%25-brightgreen)
+<!-- ![Coverage Badge](https://img.shields.io/badge/Coverage-100%25-brightgreen) -->
 
 </div>
 
