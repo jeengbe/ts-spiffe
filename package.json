@@ -1,6 +1,6 @@
 {
   "name": "@jeengbe/spiffe",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A TypeScript library for working with SPIFFE workload identities.",
   "keywords": [
     "SPIFFE",
@@ -33,9 +33,9 @@
       "types": "./dist/google-auth-client.d.ts",
       "default": "./dist/google-auth-client.js"
     },
-    "./kafkajs-auth-middleware": {
-      "types": "./dist/kafkajs-auth-middleware.d.ts",
-      "default": "./dist/kafkajs-auth-middleware.js"
+    "./kafkajs": {
+      "types": "./dist/kafkajs.d.ts",
+      "default": "./dist/kafkajs.js"
     }
   },
   "scripts": {
@@ -68,6 +68,7 @@
     "eslint-plugin-prettier": "^5.5.4",
     "google-auth-library": "^10.6.2",
     "jest": "^30.0.5",
+    "kafkajs": "^2.2.4",
     "mappersmith": "^2.47.0",
     "prettier": "^3.6.2",
     "tsc-alias": "^1.8.16",

@@ -166,10 +166,37 @@ ADC is discovered from `GOOGLE_APPLICATION_CREDENTIALS` (or `google_application_
 
 ## KafkaJS Integration
 
-The `@jeengbe/spiffe/kafkajs-auth-middleware` entry point provides a [Mappersmith](https://github.com/tulios/mappersmith) middleware that attaches a SPIFFE JWT-SVID as a bearer token on outgoing requests. This is useful for authenticating against services like the Confluent Schema Registry:
+The `@jeengbe/spiffe/kafkajs` entry point provides helpers for authenticating KafkaJS clients and related services using SPIFFE JWT-SVIDs.
+
+### SASL Authentication
+
+Use `createKafkajsSaslMechanism()` to create a KafkaJS-compatible SASL `OAuthBearer` configuration. Pass it directly to the `sasl` option when constructing a `Kafka` instance:
 
 ```ts
-import { createKafkajsAuthMiddleware } from '@jeengbe/spiffe/kafkajs-auth-middleware';
+import { createKafkajsSaslMechanism } from '@jeengbe/spiffe/kafkajs';
+import { Kafka } from 'kafkajs';
+
+const kafka = new Kafka({
+  brokers: config.kafka.brokers,
+  sasl: createKafkajsSaslMechanism('kafka-cluster'),
+});
+```
+
+To pass SASL extensions (e.g. for Confluent Cloud logical cluster routing):
+
+```ts
+sasl: createKafkajsSaslMechanism('kafka-cluster', {
+  logicalCluster: 'lkc-abc123',
+  identityPoolId: 'pool-xyz',
+}),
+```
+
+### Schema Registry Middleware
+
+Use `createKafkajsAuthMiddleware()` to create a [Mappersmith](https://github.com/tulios/mappersmith) middleware that attaches a SPIFFE JWT-SVID as a bearer token on outgoing requests. This is useful for authenticating against services like the Confluent Schema Registry:
+
+```ts
+import { createKafkajsAuthMiddleware } from '@jeengbe/spiffe/kafkajs';
 import { SchemaRegistry } from '@kafkajs/confluent-schema-registry';
 
 const schemaRegistry = new SchemaRegistry({
